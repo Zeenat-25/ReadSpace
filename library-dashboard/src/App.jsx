@@ -29,6 +29,23 @@ const [loansLoading, setLoansLoading] = useState(false);
 const [loansError, setLoansError] = useState("");
 const [loanSearch, setLoanSearch] = useState("");
 
+const [showIssueBook, setShowIssueBook] = useState(false);
+const [issueMessage, setIssueMessage] = useState("");
+
+const [issueData, setIssueData] = useState({
+  student_id: "",
+  accession_number: "",
+  librarian_id: "",
+});
+
+const [showReturnBook, setShowReturnBook] = useState(false);
+const [returnMessage, setReturnMessage] = useState("");
+
+const [returnData, setReturnData] = useState({
+  accession_number: "",
+  librarian_id: "",
+});
+
 const [overdueLoans, setOverdueLoans] = useState([]);
 const [overdueLoading, setOverdueLoading] = useState(false);
 const [overdueError, setOverdueError] = useState("");
@@ -796,6 +813,103 @@ async function loadDashboardSummary() {
   }
 }
 
+async function handleIssueBook(event) {
+  event.preventDefault();
+
+  try {
+    setIssueMessage("Issuing book...");
+
+    const response = await fetch(
+      "http://127.0.0.1:8000/issue-book",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(issueData),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.success) {
+      setIssueMessage(
+        data.message || "Could not issue book"
+      );
+      return;
+    }
+
+    setIssueMessage("Book issued successfully");
+
+    setIssueData({
+      student_id: "",
+      accession_number: "",
+      librarian_id: "",
+    });
+
+    await loadBooks();
+    await loadActiveLoans();
+    await loadDashboardSummary();
+
+    setTimeout(() => {
+      setShowIssueBook(false);
+      setIssueMessage("");
+    }, 900);
+
+  } catch {
+    setIssueMessage("Could not issue book");
+  }
+}
+
+async function handleReturnBook(event) {
+  event.preventDefault();
+
+  try {
+    setReturnMessage("Returning book...");
+
+    const response = await fetch(
+      "http://127.0.0.1:8000/return-book",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(returnData),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.success) {
+      setReturnMessage(
+        data.message || "Could not return book"
+      );
+      return;
+    }
+
+    setReturnMessage(
+      `Book returned successfully. Fine: ₹${data.fine_amount}`
+    );
+
+    setReturnData({
+      accession_number: "",
+      librarian_id: "",
+    });
+
+    await loadBooks();
+    await loadActiveLoans();
+    await loadOverdueLoans();
+    await loadDashboardSummary();
+
+    setTimeout(() => {
+      setShowReturnBook(false);
+      setReturnMessage("");
+    }, 1200);
+
+  } catch {
+    setReturnMessage("Could not return book");
+  }
+}
   // =====================================================
   // JSX
   // =====================================================
@@ -2312,15 +2426,291 @@ async function loadDashboardSummary() {
 
 {activePage === "issued" && (
   <>
-    <header className="topbar">
+   <header className="topbar">
+  <div>
+    <p className="welcome">
+      ACTIVE LOANS
+    </p>
+
+    <h2>Issued Books</h2>
+  </div>
+
+  <div className="top-actions">
+  <button
+    className="filter-button"
+    type="button"
+    onClick={() => {
+      setShowReturnBook(!showReturnBook);
+      setReturnMessage("");
+      setShowIssueBook(false);
+    }}
+  >
+    {showReturnBook
+      ? "Close Return"
+      : "Return Book"}
+  </button>
+
+  <button
+    className="primary-button"
+    type="button"
+    onClick={() => {
+      setShowIssueBook(!showIssueBook);
+      setIssueMessage("");
+      setShowReturnBook(false);
+    }}
+  >
+    {showIssueBook
+      ? "Close Form"
+      : "+ Issue Book"}
+  </button>
+</div>
+</header>
+{showIssueBook && (
+  <section className="panel issue-form-panel">
+
+    <div className="issue-form-header">
       <div>
-        <p className="welcome">
-          ACTIVE LOANS
+        <p className="section-label">
+          NEW ISSUE
         </p>
 
-        <h2>Issued Books</h2>
+        <h3>Issue Book</h3>
+
+        <p className="form-subtitle">
+          Assign a library book to a student.
+        </p>
       </div>
-    </header>
+
+      <button
+        type="button"
+        className="text-button"
+        onClick={() => {
+          setShowIssueBook(false);
+          setIssueMessage("");
+        }}
+      >
+        Close
+      </button>
+    </div>
+
+    <form
+      className="issue-form"
+      onSubmit={handleIssueBook}
+    >
+      <div className="form-group-block">
+        <div className="form-group-title">
+          Issue Details
+        </div>
+
+        <div className="issue-form-grid">
+
+          <div className="form-field">
+            <label>Student ID</label>
+
+            <input
+              type="text"
+              placeholder="e.g. BCA002"
+              value={issueData.student_id}
+              onChange={(e) =>
+                setIssueData({
+                  ...issueData,
+                  student_id: e.target.value,
+                })
+              }
+              required
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Accession Number</label>
+
+            <input
+              type="text"
+              placeholder="e.g. ACC001"
+              value={issueData.accession_number}
+              onChange={(e) =>
+                setIssueData({
+                  ...issueData,
+                  accession_number: e.target.value,
+                })
+              }
+              required
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Librarian ID</label>
+
+            <input
+              type="text"
+              placeholder="e.g. LIB001"
+              value={issueData.librarian_id}
+              onChange={(e) =>
+                setIssueData({
+                  ...issueData,
+                  librarian_id: e.target.value,
+                })
+              }
+              required
+            />
+          </div>
+
+        </div>
+      </div>
+
+      <div className="issue-form-actions">
+
+        <div>
+          {issueMessage && (
+            <span className="form-message">
+              {issueMessage}
+            </span>
+          )}
+        </div>
+
+        <div className="issue-form-buttons">
+
+          <button
+            type="button"
+            className="filter-button"
+            onClick={() => {
+              setShowIssueBook(false);
+              setIssueMessage("");
+            }}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="primary-button"
+          >
+            Issue Book
+          </button>
+
+        </div>
+
+      </div>
+
+    </form>
+
+  </section>
+)}
+{showReturnBook && (
+  <section className="panel issue-form-panel">
+
+    <div className="issue-form-header">
+      <div>
+        <p className="section-label">
+          RETURN BOOK
+        </p>
+
+        <h3>Return Book</h3>
+
+        <p className="form-subtitle">
+          Return an issued book and calculate any late fine.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        className="text-button"
+        onClick={() => {
+          setShowReturnBook(false);
+          setReturnMessage("");
+        }}
+      >
+        Close
+      </button>
+    </div>
+
+    <form
+      className="issue-form"
+      onSubmit={handleReturnBook}
+    >
+      <div className="form-group-block">
+
+        <div className="form-group-title">
+          Return Details
+        </div>
+
+        <div className="issue-form-grid">
+
+          <div className="form-field">
+            <label>Accession Number</label>
+
+            <input
+              type="text"
+              placeholder="e.g. ACC007"
+              value={returnData.accession_number}
+              onChange={(e) =>
+                setReturnData({
+                  ...returnData,
+                  accession_number: e.target.value,
+                })
+              }
+              required
+            />
+          </div>
+
+          <div className="form-field">
+            <label>Librarian ID</label>
+
+            <input
+              type="text"
+              placeholder="e.g. LIB001"
+              value={returnData.librarian_id}
+              onChange={(e) =>
+                setReturnData({
+                  ...returnData,
+                  librarian_id: e.target.value,
+                })
+              }
+              required
+            />
+          </div>
+
+        </div>
+      </div>
+
+      <div className="issue-form-actions">
+
+        <div>
+          {returnMessage && (
+            <span className="form-message">
+              {returnMessage}
+            </span>
+          )}
+        </div>
+
+        <div className="issue-form-buttons">
+
+          <button
+            type="button"
+            className="filter-button"
+            onClick={() => {
+              setShowReturnBook(false);
+              setReturnMessage("");
+            }}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            className="primary-button"
+          >
+            Return Book
+          </button>
+
+        </div>
+
+      </div>
+
+    </form>
+
+  </section>
+)}
 
     <section className="stats-grid">
       <div className="stat-card blue">

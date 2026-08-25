@@ -783,3 +783,95 @@ td span {
     justify-content: flex-end;
   }
 }
+
+/* =========================================
+   ISSUE BOOK FORM
+========================================= */
+
+.issue-form-panel {
+  margin-bottom: 20px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.issue-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+
+  padding: 22px 24px;
+
+  background: var(--blue-light);
+  border-bottom: 1px solid var(--border);
+}
+
+.issue-form-header h3 {
+  margin: 0;
+}
+
+.issue-form {
+  padding: 24px;
+}
+
+.issue-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.issue-form .form-field input {
+  width: 100%;
+  min-height: 44px;
+
+  padding: 12px 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  background: #fffdf9;
+  color: var(--text);
+
+  outline: none;
+  transition: 0.2s;
+}
+
+.issue-form .form-field input:focus {
+  border-color: var(--blue);
+
+  box-shadow:
+    0 0 0 3px rgba(185, 216, 235, 0.22);
+}
+
+.issue-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-top: 6px;
+  padding-top: 18px;
+
+  border-top: 1px solid var(--border);
+}
+
+.issue-form-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .issue-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .issue-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .issue-form-buttons {
+    justify-content: flex-end;
+  }
+}

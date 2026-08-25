@@ -31,6 +31,45 @@ app.add_middleware(
 
 
 # =========================================================
+# DATETIME HELPER
+# =========================================================
+
+def parse_supabase_datetime(value):
+    if not value:
+        return None
+
+    text = str(value).strip()
+
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        pass
+
+    if "." in text:
+        main_part, rest = text.split(".", 1)
+        timezone_part = ""
+        fraction_part = rest
+
+        if "+" in rest:
+            fraction_part, timezone_part = rest.split("+", 1)
+            timezone_part = "+" + timezone_part
+        else:
+            minus_index = rest.find("-")
+            if minus_index > 0:
+                fraction_part = rest[:minus_index]
+                timezone_part = rest[minus_index:]
+
+        fraction_part = fraction_part[:6].ljust(6, "0")
+        fixed_text = main_part + "." + fraction_part + timezone_part
+        return datetime.fromisoformat(fixed_text)
+
+    raise ValueError(f"Invalid datetime value: {value}")
+
+
+# =========================================================
 # REQUEST MODELS
 # =========================================================
 class AddStudentRequest(BaseModel):
@@ -415,9 +454,8 @@ def return_book(data: ReturnBookRequest):
 
         return_date = datetime.now()
 
-        due_date = datetime.fromisoformat(
+        due_date = parse_supabase_datetime(
             active_loan["due_date"]
-            .replace("Z", "+00:00")
         )
 
         if due_date.tzinfo is not None:
@@ -1047,9 +1085,8 @@ def get_reports_summary():
                 loan["status"] == "issued"
                 and loan.get("due_date")
             ):
-                due_date = datetime.fromisoformat(
+                due_date = parse_supabase_datetime(
                     loan["due_date"]
-                    .replace("Z", "+00:00")
                 )
 
                 now = current_time
@@ -1123,30 +1160,30 @@ def get_dashboard_summary():
 
         for loan in loans:
             if loan.get("issue_date"):
-                issue_date = datetime.fromisoformat(
-                    loan["issue_date"].replace("Z", "+00:00")
-                ).date()
+                issue_date = parse_supabase_datetime(
+                    loan["issue_date"]
+                )
 
-                if issue_date == today:
+                if issue_date and issue_date.date() == today:
                     issued_today += 1
 
             if loan.get("return_date"):
-                return_date = datetime.fromisoformat(
-                    loan["return_date"].replace("Z", "+00:00")
-                ).date()
+                return_date = parse_supabase_datetime(
+                    loan["return_date"]
+                )
 
-                if return_date == today:
+                if return_date and return_date.date() == today:
                     returned_today += 1
 
             if (
                 loan.get("due_date")
                 and loan.get("status") == "issued"
             ):
-                due_date = datetime.fromisoformat(
-                    loan["due_date"].replace("Z", "+00:00")
-                ).date()
+                due_date = parse_supabase_datetime(
+                    loan["due_date"]
+                )
 
-                if due_date == today:
+                if due_date and due_date.date() == today:
                     due_today += 1
 
         recent_loan = loans[0] if loans else None
