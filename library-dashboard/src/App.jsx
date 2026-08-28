@@ -279,12 +279,6 @@ if (
     ).length;
   }, [books]);
 
-  const reservedCount = useMemo(() => {
-    return books.filter(
-      (book) => book.status === "reserved"
-    ).length;
-  }, [books]);
-
   // =====================================================
   // BOOK SEARCH
   // =====================================================
@@ -1235,12 +1229,6 @@ async function handleReturnBook(event) {
                 <strong>{loading ? "..." : issuedCount}</strong>
                 <p>Currently borrowed</p>
               </div>
-
-              <div className="stat-card">
-                <span>Reserved</span>
-                <strong>{loading ? "..." : reservedCount}</strong>
-                <p>Currently reserved</p>
-              </div>
             </section>
 
             <section className="dashboard-grid">
@@ -1357,13 +1345,7 @@ async function handleReturnBook(event) {
   </strong>
 </div>
 
-<div className="quick-row">
-  <span>Reserved</span>
 
-  <strong>
-    {reservedCount}
-  </strong>
-</div>
               </div>
             </section>
 
@@ -3519,13 +3501,7 @@ async function handleReturnBook(event) {
                 </strong>
               </div>
 
-              <div className="quick-row">
-                <span>Reserved Books</span>
 
-                <strong>
-                  {reportData.reserved_books}
-                </strong>
-              </div>
 
               <div className="quick-row">
                 <span>Total Copies</span>

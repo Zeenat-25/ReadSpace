@@ -1852,12 +1852,6 @@ def get_reports_summary():
             if book["status"] == "issued"
         ])
 
-        reserved_books = len([
-            book
-            for book in book_copies
-            if book["status"] == "reserved"
-        ])
-
         returned_loans = len([
             loan
             for loan in loans
@@ -1899,7 +1893,6 @@ def get_reports_summary():
                 "total_books": total_books,
                 "available_books": available_books,
                 "issued_books": issued_books,
-                "reserved_books": reserved_books,
                 "total_students": len(students),
                 "total_librarians": len(librarians),
                 "active_loans": active_loans,
