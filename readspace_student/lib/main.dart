@@ -124,7 +124,8 @@ Future<void> main() async {
   );
 }
 
-const String apiBaseUrl = 'http://10.0.2.2:8000';
+const String apiBaseUrl =
+    'https://readspace-backend-dmsp.onrender.com';
 
 class ReadSpaceStudentApp extends StatelessWidget {
   const ReadSpaceStudentApp({super.key});

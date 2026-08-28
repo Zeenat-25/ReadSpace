@@ -8,7 +8,8 @@ void main() {
   runApp(const ReadSpaceStaffApp());
 }
 
-const String apiBaseUrl = 'http://10.0.2.2:8000';
+const String apiBaseUrl =
+    'https://readspace-backend-dmsp.onrender.com';
 final ValueNotifier<int> activityRefreshNotifier = ValueNotifier<int>(0);
 
 class ReadSpaceStaffApp extends StatelessWidget {
