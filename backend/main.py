@@ -1,4 +1,8 @@
 from datetime import datetime, timedelta
+import os
+
+import firebase_admin
+from firebase_admin import credentials, messaging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +16,70 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+
+
+# =========================================================
+# FIREBASE PUSH NOTIFICATIONS
+# =========================================================
+
+FIREBASE_SERVICE_ACCOUNT = os.getenv(
+    "FIREBASE_SERVICE_ACCOUNT",
+    "firebase-service-account.json"
+)
+
+firebase_ready = False
+
+try:
+    if not firebase_admin._apps:
+        if os.path.exists(FIREBASE_SERVICE_ACCOUNT):
+            cred = credentials.Certificate(
+                FIREBASE_SERVICE_ACCOUNT
+            )
+            firebase_admin.initialize_app(cred)
+            firebase_ready = True
+    else:
+        firebase_ready = True
+except Exception as firebase_error:
+    print(
+        "Firebase initialization skipped:",
+        firebase_error
+    )
+
+
+def send_push_notification(
+    token: str | None,
+    title: str,
+    body: str,
+    data: dict | None = None
+):
+    if not firebase_ready or not token:
+        return False
+
+    try:
+        message = messaging.Message(
+            token=token,
+            notification=messaging.Notification(
+                title=title,
+                body=body
+            ),
+            data={
+                str(key): str(value)
+                for key, value in (
+                    data or {}
+                ).items()
+            }
+        )
+
+        messaging.send(message)
+        return True
+
+    except Exception as push_error:
+        print(
+            "Push notification failed:",
+            push_error
+        )
+        return False
 
 # =========================================================
 # CORS
@@ -108,6 +176,10 @@ class AddBookRequest(BaseModel):
     barcode: str
 
 
+class FcmTokenRequest(BaseModel):
+    token: str
+
+
 # =========================================================
 # HOME
 # =========================================================
@@ -180,6 +252,348 @@ def get_books_with_status():
             "message": str(error)
         }
 
+
+
+
+
+
+# =========================================================
+# SEARCH BOOK AVAILABILITY FOR STUDENT APP
+# =========================================================
+
+@app.get("/books/search")
+def search_books(q: str = ""):
+    try:
+        query = q.strip()
+
+        response = (
+            supabase
+            .table("book_copies")
+            .select(
+                """
+                id,
+                accession_number,
+                barcode,
+                status,
+                books (
+                    id,
+                    title,
+                    author,
+                    isbn,
+                    category
+                )
+                """
+            )
+            .order("accession_number")
+            .execute()
+        )
+
+        copies = response.data or []
+
+        if query:
+            term = query.lower()
+
+            filtered = []
+
+            for copy in copies:
+                book = copy.get("books") or {}
+
+                values = [
+                    copy.get("accession_number"),
+                    copy.get("barcode"),
+                    book.get("title"),
+                    book.get("author"),
+                    book.get("isbn"),
+                    book.get("category"),
+                ]
+
+                if any(
+                    term in str(value).lower()
+                    for value in values
+                    if value is not None
+                ):
+                    filtered.append(copy)
+
+            copies = filtered
+
+        return {
+            "success": True,
+            "books": copies
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+# =========================================================
+# LOOKUP BOOK BY ACCESSION OR BARCODE
+# =========================================================
+
+@app.get("/books/lookup/{code}")
+def lookup_book(code: str):
+    try:
+        clean_code = code.strip().upper()
+
+        copy_response = (
+            supabase
+            .table("book_copies")
+            .select(
+                """
+                id,
+                accession_number,
+                barcode,
+                status,
+                books (
+                    id,
+                    title,
+                    author,
+                    isbn,
+                    category
+                )
+                """
+            )
+            .eq(
+                "accession_number",
+                clean_code
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if not copy_response.data:
+            copy_response = (
+                supabase
+                .table("book_copies")
+                .select(
+                    """
+                    id,
+                    accession_number,
+                    barcode,
+                    status,
+                    books (
+                        id,
+                        title,
+                        author,
+                        isbn,
+                        category
+                    )
+                    """
+                )
+                .eq(
+                    "barcode",
+                    clean_code
+                )
+                .limit(1)
+                .execute()
+            )
+
+        if not copy_response.data:
+            return {
+                "success": False,
+                "message": "Book not found"
+            }
+
+        book_copy = copy_response.data[0]
+
+        active_loan = None
+
+        if book_copy["status"] == "issued":
+            loan_response = (
+                supabase
+                .table("loans")
+                .select(
+                    """
+                    id,
+                    issue_date,
+                    due_date,
+                    status,
+                    students (
+                        student_id,
+                        name,
+                        course,
+                        year,
+                        division
+                    ),
+                    librarians (
+                        employee_id,
+                        name
+                    )
+                    """
+                )
+                .eq(
+                    "book_copy_id",
+                    book_copy["id"]
+                )
+                .eq(
+                    "status",
+                    "issued"
+                )
+                .order(
+                    "issue_date",
+                    desc=True
+                )
+                .limit(1)
+                .execute()
+            )
+
+            if loan_response.data:
+                active_loan = loan_response.data[0]
+
+        return {
+            "success": True,
+            "book_copy": book_copy,
+            "active_loan": active_loan
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+
+
+
+
+# =========================================================
+# SAVE STUDENT FCM TOKEN
+# =========================================================
+
+@app.post("/students/{student_id}/fcm-token")
+def save_student_fcm_token(
+    student_id: str,
+    data: FcmTokenRequest
+):
+    try:
+        clean_student_id = (
+            student_id
+            .strip()
+            .upper()
+        )
+
+        student_response = (
+            supabase
+            .table("students")
+            .select("id, student_id")
+            .eq(
+                "student_id",
+                clean_student_id
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if not student_response.data:
+            return {
+                "success": False,
+                "message": "Student not found"
+            }
+
+        student = student_response.data[0]
+
+        (
+            supabase
+            .table("students")
+            .update({
+                "fcm_token": data.token
+            })
+            .eq(
+                "id",
+                student["id"]
+            )
+            .execute()
+        )
+
+        return {
+            "success": True,
+            "message":
+                "Notification device registered"
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+# =========================================================
+# LOOKUP STUDENT
+# =========================================================
+
+@app.get("/students/lookup/{student_id}")
+def lookup_student(student_id: str):
+    try:
+        clean_student_id = student_id.strip().upper()
+
+        student_response = (
+            supabase
+            .table("students")
+            .select("*")
+            .eq(
+                "student_id",
+                clean_student_id
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if not student_response.data:
+            return {
+                "success": False,
+                "message": "Student not found"
+            }
+
+        student = student_response.data[0]
+
+        loans_response = (
+            supabase
+            .table("loans")
+            .select(
+                """
+                id,
+                issue_date,
+                due_date,
+                status,
+                book_copies (
+                    accession_number,
+                    books (
+                        title,
+                        author
+                    )
+                )
+                """
+            )
+            .eq(
+                "student_id",
+                student["id"]
+            )
+            .eq(
+                "status",
+                "issued"
+            )
+            .order(
+                "issue_date",
+                desc=True
+            )
+            .execute()
+        )
+
+        active_loans = loans_response.data or []
+
+        return {
+            "success": True,
+            "student": student,
+            "active_loans_count": len(active_loans),
+            "active_loans": active_loans
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
 
 # =========================================================
 # ISSUE BOOK
@@ -335,6 +749,24 @@ def issue_book(data: IssueBookRequest):
                 "is_read": False
             })
             .execute()
+        )
+
+
+        send_push_notification(
+            student.get("fcm_token"),
+            "Book Issued",
+            (
+                f"{data.accession_number} has been "
+                f"issued to you. Due "
+                f"{due_date.strftime('%d/%m/%Y')}."
+            ),
+            {
+                "type": "book_issued",
+                "accession_number":
+                    data.accession_number,
+                "due_date":
+                    due_date.isoformat()
+            }
         )
 
 
@@ -551,6 +983,51 @@ def return_book(data: ReturnBookRequest):
         )
 
 
+        returned_student_response = (
+            supabase
+            .table("students")
+            .select(
+                "id, student_id, fcm_token"
+            )
+            .eq(
+                "id",
+                active_loan["student_id"]
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if returned_student_response.data:
+            returned_student = (
+                returned_student_response.data[0]
+            )
+
+            push_body = (
+                f"{data.accession_number} was "
+                f"returned successfully."
+            )
+
+            if fine_amount > 0:
+                push_body += (
+                    f" Fine: ₹{fine_amount}."
+                )
+
+            send_push_notification(
+                returned_student.get(
+                    "fcm_token"
+                ),
+                "Book Returned",
+                push_body,
+                {
+                    "type": "book_returned",
+                    "accession_number":
+                        data.accession_number,
+                    "fine_amount":
+                        fine_amount
+                }
+            )
+
+
         return {
             "success": True,
             "message":
@@ -569,6 +1046,135 @@ def return_book(data: ReturnBookRequest):
             "message": str(error)
         }
 
+
+
+
+# =========================================================
+# GET STUDENT CURRENT LOANS
+# =========================================================
+
+@app.get("/students/{student_id}/current-loans")
+def get_student_current_loans(student_id: str):
+    try:
+        clean_student_id = student_id.strip().upper()
+
+        student_response = (
+            supabase
+            .table("students")
+            .select("*")
+            .eq(
+                "student_id",
+                clean_student_id
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if not student_response.data:
+            return {
+                "success": False,
+                "message": "Student not found"
+            }
+
+        student = student_response.data[0]
+
+        loans_response = (
+            supabase
+            .table("loans")
+            .select(
+                """
+                id,
+                issue_date,
+                due_date,
+                status,
+                fine_amount,
+                book_copies (
+                    accession_number,
+                    barcode,
+                    books (
+                        title,
+                        author,
+                        category
+                    )
+                )
+                """
+            )
+            .eq(
+                "student_id",
+                student["id"]
+            )
+            .eq(
+                "status",
+                "issued"
+            )
+            .order(
+                "issue_date",
+                desc=True
+            )
+            .execute()
+        )
+
+        loans = loans_response.data or []
+
+        now = datetime.now()
+        fine_per_day = 5
+
+        enriched_loans = []
+        total_current_fine = 0
+
+        for loan in loans:
+            due_date = parse_supabase_datetime(
+                loan.get("due_date")
+            )
+
+            current_time = now
+
+            if (
+                due_date is not None
+                and due_date.tzinfo is not None
+            ):
+                current_time = now.astimezone(
+                    due_date.tzinfo
+                )
+
+            late_days = 0
+
+            if (
+                due_date is not None
+                and current_time.date() > due_date.date()
+            ):
+                late_days = (
+                    current_time.date()
+                    - due_date.date()
+                ).days
+
+            current_fine = late_days * fine_per_day
+            total_current_fine += current_fine
+
+            enriched_loan = dict(loan)
+            enriched_loan["late_days"] = late_days
+            enriched_loan["current_fine"] = current_fine
+
+            enriched_loans.append(
+                enriched_loan
+            )
+
+        return {
+            "success": True,
+            "student": {
+                "student_id": student["student_id"],
+                "name": student["name"]
+            },
+            "borrowed_count": len(enriched_loans),
+            "total_current_fine": total_current_fine,
+            "loans": enriched_loans
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
 
 # =========================================================
 # GET STUDENT NOTIFICATIONS
@@ -636,6 +1242,60 @@ def get_student_notifications(
             "success": False,
             "message": str(error)
         }
+
+
+# =========================================================
+# MARK NOTIFICATION AS READ
+# =========================================================
+
+@app.post("/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: str):
+    try:
+        # Update notification
+        (
+            supabase
+            .table("notifications")
+            .update({
+                "is_read": True
+            })
+            .eq(
+                "id",
+                notification_id
+            )
+            .execute()
+        )
+
+        # Check whether it was actually updated
+        check_response = (
+            supabase
+            .table("notifications")
+            .select("id, is_read")
+            .eq(
+                "id",
+                notification_id
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if not check_response.data:
+            return {
+                "success": False,
+                "message": "Notification not found"
+            }
+
+        return {
+            "success": True,
+            "message": "Notification marked as read",
+            "notification": check_response.data[0]
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
 
 @app.post("/add-book")
 def add_book(data: AddBookRequest):
@@ -782,6 +1442,109 @@ def add_student(data: AddStudentRequest):
             "success": True,
             "message": "Student added successfully",
             "student": new_student.data
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "message": str(error)
+        }
+
+
+
+
+
+# =========================================================
+# LIBRARIAN RECENT ACTIVITY
+# =========================================================
+
+@app.get("/librarians/{employee_id}/activity")
+def get_librarian_activity(employee_id: str):
+    try:
+        librarian_response = (
+            supabase.table("librarians")
+            .select("id, employee_id, name")
+            .eq("employee_id", employee_id.strip().upper())
+            .limit(1).execute()
+        )
+        if not librarian_response.data:
+            return {"success": False, "message": "Librarian not found"}
+
+        librarian = librarian_response.data[0]
+        response = (
+            supabase.table("loans")
+            .select("""
+                id, issue_date, due_date, return_date, status, fine_amount,
+                students (student_id, name),
+                book_copies (accession_number, books (title, author))
+            """)
+            .eq("librarian_id", librarian["id"])
+            .order("issue_date", desc=True)
+            .limit(30).execute()
+        )
+
+        activities = []
+        for loan in response.data or []:
+            copy = loan.get("book_copies") or {}
+            student = loan.get("students") or {}
+            base = {
+                "loan_id": loan.get("id"),
+                "accession_number": copy.get("accession_number"),
+                "book_title": (copy.get("books") or {}).get("title"),
+                "student_id": student.get("student_id"),
+                "student_name": student.get("name"),
+            }
+            if loan.get("return_date"):
+                activities.append({**base, "type": "returned", "created_at": loan.get("return_date")})
+            activities.append({**base, "type": "issued", "created_at": loan.get("issue_date")})
+
+        def activity_time(item):
+            try:
+                return parse_supabase_datetime(item.get("created_at")) or datetime.min
+            except Exception:
+                return datetime.min
+
+        activities.sort(key=activity_time, reverse=True)
+        return {
+            "success": True,
+            "librarian": librarian,
+            "activities": activities[:20]
+        }
+    except Exception as error:
+        return {"success": False, "message": str(error)}
+
+
+# =========================================================
+# VALIDATE LIBRARIAN
+# =========================================================
+
+@app.get("/librarians/validate/{employee_id}")
+def validate_librarian(employee_id: str):
+    try:
+        response = (
+            supabase
+            .table("librarians")
+            .select(
+                "id, employee_id, name, email, role"
+            )
+            .eq(
+                "employee_id",
+                employee_id.strip().upper()
+            )
+            .limit(1)
+            .execute()
+        )
+
+        if not response.data:
+            return {
+                "success": False,
+                "message": "Librarian not found"
+            }
+
+        return {
+            "success": True,
+            "message": "Librarian verified",
+            "librarian": response.data[0]
         }
 
     except Exception as error:

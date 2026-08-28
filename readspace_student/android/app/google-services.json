@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "21709533185",
+    "project_id": "readspace-library",
+    "storage_bucket": "readspace-library.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:21709533185:android:0381dfab06fbca9c841000",
+        "android_client_info": {
+          "package_name": "com.example.readspace_student"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC-jpe-5ru_tIezCNgydCkK1iJiTNuulPc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
