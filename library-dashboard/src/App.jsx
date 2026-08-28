@@ -110,7 +110,7 @@ const [newLibrarian, setNewLibrarian] = useState({
       setLoading(true);
 
       const response = await fetch(
-        "http://127.0.0.1:8000/books/status"
+        "https://readspace-backend-dmsp.onrender.com/books/status"
       );
 
       if (!response.ok) {
@@ -144,7 +144,7 @@ const [newLibrarian, setNewLibrarian] = useState({
     async function fetchBooks() {
       try {
         const response = await fetch(
-          "http://127.0.0.1:8000/books/status"
+          "https://readspace-backend-dmsp.onrender.com/books/status"
         );
 
         if (!response.ok) {
@@ -165,7 +165,7 @@ const [newLibrarian, setNewLibrarian] = useState({
           setLoading(false);
 
           const dashboardResponse = await fetch(
-  "http://127.0.0.1:8000/dashboard/summary"
+  "https://readspace-backend-dmsp.onrender.com/dashboard/summary"
 );
 
 const dashboardData =
@@ -204,7 +204,7 @@ if (
       setStudentsLoading(true);
 
       const response = await fetch(
-        "http://127.0.0.1:8000/students"
+        "https://readspace-backend-dmsp.onrender.com/students"
       );
 
       if (!response.ok) {
@@ -237,7 +237,7 @@ if (
       setLibrariansLoading(true);
 
       const response = await fetch(
-        "http://127.0.0.1:8000/librarians"
+        "https://readspace-backend-dmsp.onrender.com/librarians"
       );
 
       if (!response.ok) {
@@ -523,7 +523,7 @@ const filteredNotifications = useMemo(() => {
       setAddBookMessage("Adding book...");
 
       const response = await fetch(
-        "http://127.0.0.1:8000/add-book",
+        "https://readspace-backend-dmsp.onrender.com/add-book",
         {
           method: "POST",
           headers: {
@@ -577,7 +577,7 @@ const filteredNotifications = useMemo(() => {
       setAddStudentMessage("Adding student...");
 
       const response = await fetch(
-        "http://127.0.0.1:8000/add-student",
+        "https://readspace-backend-dmsp.onrender.com/add-student",
         {
           method: "POST",
           headers: {
@@ -625,7 +625,7 @@ const filteredNotifications = useMemo(() => {
     setAddLibrarianMessage("Adding librarian...");
 
     const response = await fetch(
-      "http://127.0.0.1:8000/add-librarian",
+      "https://readspace-backend-dmsp.onrender.com/add-librarian",
       {
         method: "POST",
         headers: {
@@ -674,7 +674,7 @@ async function loadActiveLoans() {
     setLoansLoading(true);
 
     const response = await fetch(
-      "http://127.0.0.1:8000/loans/active"
+      "https://readspace-backend-dmsp.onrender.com/loans/active"
     );
 
     if (!response.ok) {
@@ -702,7 +702,7 @@ async function loadOverdueLoans() {
     setOverdueLoading(true);
 
     const response = await fetch(
-      "http://127.0.0.1:8000/loans/overdue"
+      "https://readspace-backend-dmsp.onrender.com/loans/overdue"
     );
 
     if (!response.ok) {
@@ -731,7 +731,7 @@ async function loadNotifications() {
     setNotificationsLoading(true);
 
     const response = await fetch(
-      "http://127.0.0.1:8000/notifications"
+      "https://readspace-backend-dmsp.onrender.com/notifications"
     );
 
     if (!response.ok) {
@@ -760,7 +760,7 @@ async function loadReport() {
     setReportLoading(true);
 
     const response = await fetch(
-      "http://127.0.0.1:8000/reports/summary"
+      "https://readspace-backend-dmsp.onrender.com/reports/summary"
     );
 
     if (!response.ok) {
@@ -789,7 +789,7 @@ async function loadDashboardSummary() {
     setDashboardLoading(true);
 
     const response = await fetch(
-      "http://127.0.0.1:8000/dashboard/summary"
+      "https://readspace-backend-dmsp.onrender.com/dashboard/summary"
     );
 
     if (!response.ok) {
@@ -820,7 +820,7 @@ async function handleIssueBook(event) {
     setIssueMessage("Issuing book...");
 
     const response = await fetch(
-      "http://127.0.0.1:8000/issue-book",
+      "https://readspace-backend-dmsp.onrender.com/issue-book",
       {
         method: "POST",
         headers: {
@@ -868,7 +868,7 @@ async function handleReturnBook(event) {
     setReturnMessage("Returning book...");
 
     const response = await fetch(
-      "http://127.0.0.1:8000/return-book",
+      "https://readspace-backend-dmsp.onrender.com/return-book",
       {
         method: "POST",
         headers: {
