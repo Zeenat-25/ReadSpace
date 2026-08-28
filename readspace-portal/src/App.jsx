@@ -90,7 +90,7 @@ function BellIcon() {
 }
 
 function App() {
-  const dashboardUrl = "http://localhost:5173";
+  const dashboardUrl = "https://readspace-dashboard.vercel.app";
 
   return (
     <div className="site-shell">
