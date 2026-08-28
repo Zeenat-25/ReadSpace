@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import os
+import json
 
 import firebase_admin
 from firebase_admin import credentials, messaging
@@ -23,23 +24,52 @@ app = FastAPI(
 # FIREBASE PUSH NOTIFICATIONS
 # =========================================================
 
-FIREBASE_SERVICE_ACCOUNT = os.getenv(
-    "FIREBASE_SERVICE_ACCOUNT",
-    "firebase-service-account.json"
-)
-
 firebase_ready = False
 
 try:
     if not firebase_admin._apps:
-        if os.path.exists(FIREBASE_SERVICE_ACCOUNT):
-            cred = credentials.Certificate(
-                FIREBASE_SERVICE_ACCOUNT
+
+        # ---------------------------------------------
+        # Render / Production
+        # Reads Firebase JSON directly from env variable
+        # ---------------------------------------------
+        firebase_json = os.getenv(
+            "FIREBASE_SERVICE_ACCOUNT_JSON"
+        )
+
+        if firebase_json:
+            service_account_info = json.loads(
+                firebase_json
             )
+
+            cred = credentials.Certificate(
+                service_account_info
+            )
+
             firebase_admin.initialize_app(cred)
             firebase_ready = True
+
+        # ---------------------------------------------
+        # Local Development
+        # Uses firebase-service-account.json file
+        # ---------------------------------------------
+        else:
+            firebase_file = os.getenv(
+                "FIREBASE_SERVICE_ACCOUNT",
+                "firebase-service-account.json"
+            )
+
+            if os.path.exists(firebase_file):
+                cred = credentials.Certificate(
+                    firebase_file
+                )
+
+                firebase_admin.initialize_app(cred)
+                firebase_ready = True
+
     else:
         firebase_ready = True
+
 except Exception as firebase_error:
     print(
         "Firebase initialization skipped:",
