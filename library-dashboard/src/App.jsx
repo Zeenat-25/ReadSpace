@@ -910,6 +910,103 @@ async function handleReturnBook(event) {
     setReturnMessage("Could not return book");
   }
 }
+
+  // =====================================================
+  // LIVE AUTO REFRESH
+  // Keeps dashboard data in sync with Staff app issue/return actions
+  // without showing loading flicker or requiring manual refresh.
+  // =====================================================
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshLiveData() {
+      try {
+        const [
+          booksResponse,
+          dashboardResponse,
+          loansResponse,
+          overdueResponse,
+          notificationsResponse,
+        ] = await Promise.all([
+          fetch("https://readspace-backend-dmsp.onrender.com/books/status"),
+          fetch("https://readspace-backend-dmsp.onrender.com/dashboard/summary"),
+          fetch("https://readspace-backend-dmsp.onrender.com/loans/active"),
+          fetch("https://readspace-backend-dmsp.onrender.com/loans/overdue"),
+          fetch("https://readspace-backend-dmsp.onrender.com/notifications"),
+        ]);
+
+        const [
+          booksData,
+          dashboardData,
+          loansData,
+          overdueData,
+          notificationsData,
+        ] = await Promise.all([
+          booksResponse.ok ? booksResponse.json() : null,
+          dashboardResponse.ok ? dashboardResponse.json() : null,
+          loansResponse.ok ? loansResponse.json() : null,
+          overdueResponse.ok ? overdueResponse.json() : null,
+          notificationsResponse.ok ? notificationsResponse.json() : null,
+        ]);
+
+        if (cancelled) return;
+
+        if (Array.isArray(booksData)) {
+          setBooks(booksData);
+          setError("");
+        }
+
+        if (dashboardData?.success) {
+          setDashboardSummary(dashboardData.dashboard);
+          setDashboardError("");
+        }
+
+        if (loansData?.success) {
+          setActiveLoans(loansData.loans || []);
+          setLoansError("");
+        }
+
+        if (overdueData?.success) {
+          setOverdueLoans(overdueData.overdue_loans || []);
+          setOverdueError("");
+        }
+
+        if (notificationsData?.success) {
+          setNotifications(notificationsData.notifications || []);
+          setNotificationsError("");
+        }
+      } catch (err) {
+        // Keep the current dashboard data if one background refresh fails.
+        console.error("ReadSpace live refresh failed:", err);
+      }
+    }
+
+    // Refresh every 3 seconds while the dashboard is open.
+    const intervalId = window.setInterval(refreshLiveData, 3000);
+
+    // Refresh immediately when the user comes back to this browser tab/window.
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        refreshLiveData();
+      }
+    }
+
+    function handleWindowFocus() {
+      refreshLiveData();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, []);
+
   // =====================================================
   // JSX
   // =====================================================
