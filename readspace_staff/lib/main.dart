@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const ReadSpaceStaffApp());
@@ -27,8 +28,71 @@ class ReadSpaceStaffApp extends StatelessWidget {
           seedColor: const Color(0xFF5C8FA8),
         ),
       ),
-      home: const StaffLoginPage(),
+      home: const StaffSessionGate(),
     );
+  }
+}
+
+
+// =====================================================
+// STAFF SESSION GATE
+// Keeps the librarian signed in after the app is closed.
+// =====================================================
+
+class StaffSessionGate extends StatefulWidget {
+  const StaffSessionGate({super.key});
+
+  @override
+  State<StaffSessionGate> createState() => _StaffSessionGateState();
+}
+
+class _StaffSessionGateState extends State<StaffSessionGate> {
+  String? librarianId;
+  String? librarianName;
+  bool checkingSession = true;
+
+  @override
+  void initState() {
+    super.initState();
+    restoreSession();
+  }
+
+  Future<void> restoreSession() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedId = prefs.getString('staff_librarian_id');
+    final savedName = prefs.getString('staff_librarian_name');
+
+    if (!mounted) return;
+
+    setState(() {
+      librarianId = savedId;
+      librarianName = savedName;
+      checkingSession = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (checkingSession) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (librarianId != null && librarianId!.isNotEmpty) {
+      return StaffHomePage(
+        librarianId: librarianId!,
+        librarianName:
+            (librarianName == null || librarianName!.isEmpty)
+                ? 'Librarian'
+                : librarianName!,
+      );
+    }
+
+    return const StaffLoginPage();
   }
 }
 
@@ -98,6 +162,23 @@ class _StaffLoginPageState extends State<StaffLoginPage> {
         final librarianName =
             librarian['name']?.toString() ??
             'Librarian';
+
+        final prefs =
+            await SharedPreferences.getInstance();
+
+        await prefs.setString(
+          'staff_librarian_id',
+          librarianId,
+        );
+
+        await prefs.setString(
+          'staff_librarian_name',
+          librarianName,
+        );
+
+        if (!mounted) {
+          return;
+        }
 
         Navigator.pushReplacement(
           context,
@@ -465,7 +546,83 @@ class _StaffHomePageState extends State<StaffHomePage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFFF8F6F1),
-        title: const Text('ReadSpace Staff', style: TextStyle(fontWeight: FontWeight.w700)),
+        title: const Text(
+          'ReadSpace Staff',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Logout',
+            onPressed: () async {
+              final shouldLogout =
+                  await showDialog<bool>(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('Logout'),
+                    content: const Text(
+                      'Are you sure you want to logout?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(
+                            context,
+                            false,
+                          );
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.pop(
+                            context,
+                            true,
+                          );
+                        },
+                        child: const Text('Logout'),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (shouldLogout != true ||
+                  !context.mounted) {
+                return;
+              }
+
+              final prefs =
+                  await SharedPreferences.getInstance();
+
+              await prefs.remove(
+                'staff_librarian_id',
+              );
+              await prefs.remove(
+                'staff_librarian_name',
+              );
+
+              if (!context.mounted) {
+                return;
+              }
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const StaffLoginPage(),
+                ),
+                (route) => false,
+              );
+            },
+            icon: const Icon(
+              Icons.logout_rounded,
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(

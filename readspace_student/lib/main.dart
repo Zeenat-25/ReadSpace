@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
 final FlutterLocalNotificationsPlugin
@@ -143,8 +144,88 @@ class ReadSpaceStudentApp extends StatelessWidget {
           seedColor: const Color(0xFF5C8FA8),
         ),
       ),
-      home: const StudentLoginPage(),
+      home: const StudentSessionGate(),
     );
+  }
+}
+
+
+// =====================================================
+// STUDENT SESSION GATE
+// Keeps the student signed in after the app is closed.
+// =====================================================
+
+class StudentSessionGate extends StatefulWidget {
+  const StudentSessionGate({super.key});
+
+  @override
+  State<StudentSessionGate> createState() =>
+      _StudentSessionGateState();
+}
+
+class _StudentSessionGateState
+    extends State<StudentSessionGate> {
+  bool checkingSession = true;
+  Map<String, dynamic>? student;
+
+  @override
+  void initState() {
+    super.initState();
+    restoreSession();
+  }
+
+  Future<void> restoreSession() async {
+    final prefs =
+        await SharedPreferences.getInstance();
+
+    final savedStudentId =
+        prefs.getString('student_id');
+
+    final savedStudentData =
+        prefs.getString('student_data');
+
+    if (savedStudentId != null &&
+        savedStudentId.isNotEmpty &&
+        savedStudentData != null &&
+        savedStudentData.isNotEmpty) {
+      try {
+        final decoded =
+            jsonDecode(savedStudentData);
+
+        if (decoded is Map) {
+          student =
+              Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {
+        await prefs.remove('student_id');
+        await prefs.remove('student_data');
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      checkingSession = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (checkingSession) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (student != null) {
+      return StudentHomePage(
+        student: student!,
+      );
+    }
+
+    return const StudentLoginPage();
   }
 }
 
@@ -273,6 +354,19 @@ class _StudentLoginPageState
 
         await registerNotificationDevice(
           studentId,
+        );
+
+        final prefs =
+            await SharedPreferences.getInstance();
+
+        await prefs.setString(
+          'student_id',
+          studentId,
+        );
+
+        await prefs.setString(
+          'student_data',
+          jsonEncode(student),
         );
 
         if (!mounted) {
@@ -1059,6 +1153,16 @@ class _StudentHomePageState
 
               if (shouldLogout != true ||
                   !context.mounted) {
+                return;
+              }
+
+              final prefs =
+                  await SharedPreferences.getInstance();
+
+              await prefs.remove('student_id');
+              await prefs.remove('student_data');
+
+              if (!context.mounted) {
                 return;
               }
 
