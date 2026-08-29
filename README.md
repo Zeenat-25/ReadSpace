@@ -296,26 +296,6 @@ Suggested filename: assets/student-notification.png
 
 <br/>
 
-## 🚀 Getting Started
-
-<details>
-<summary><b>⚙️ Backend Setup</b></summary>
-
-<br/>
-## 🌐 Live Portal
-
-<p align="center">
-  <a href="https://readspace-portal.vercel.app/">
-    <img src="https://img.shields.io/badge/🚀_OPEN_READSPACE_PORTAL-Visit_Now-2563EB?style=for-the-badge" alt="ReadSpace Portal"/>
-  </a>
-</p>
-
-<p align="center">
-  <b>Experience ReadSpace live on the web.</b>
-</p>
-
-<br/>
-
 ## 🔐 Environment & Security
 
 The backend requires **Supabase credentials** and **Firebase configuration** to run, supplied through environment variables or your deployment platform's secure configuration.
