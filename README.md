@@ -302,66 +302,17 @@ Suggested filename: assets/student-notification.png
 <summary><b>⚙️ Backend Setup</b></summary>
 
 <br/>
+## 🌐 Live Portal
 
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
+<p align="center">
+  <a href="https://readspace-portal.vercel.app/">
+    <img src="https://img.shields.io/badge/🚀_OPEN_READSPACE_PORTAL-Visit_Now-2563EB?style=for-the-badge" alt="ReadSpace Portal"/>
+  </a>
+</p>
 
-</details>
-
-<details>
-<summary><b>🖥️ Admin Dashboard Setup</b></summary>
-
-<br/>
-
-```bash
-cd library-dashboard
-npm install
-npm run dev
-```
-
-</details>
-
-<details>
-<summary><b>🌐 Public Portal Setup</b></summary>
-
-<br/>
-
-```bash
-cd readspace-portal
-npm install
-npm run dev
-```
-
-</details>
-
-<details>
-<summary><b>📱 Librarian App Setup</b></summary>
-
-<br/>
-
-```bash
-cd readspace_staff
-flutter pub get
-flutter run
-```
-
-</details>
-
-<details>
-<summary><b>🎓 Student App Setup</b></summary>
-
-<br/>
-
-```bash
-cd readspace_student
-flutter pub get
-flutter run
-```
-
-</details>
+<p align="center">
+  <b>Experience ReadSpace live on the web.</b>
+</p>
 
 <br/>
 
